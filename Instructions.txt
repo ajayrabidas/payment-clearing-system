@@ -1,0 +1,219 @@
+Mini enterprise-grade banking transaction processing system using:
+
+| Component     | Purpose                      |
+| ------------- | ---------------------------- |
+| Java          | Core coding                  |
+| Spring Boot   | REST APIs                    |
+| MySQL         | Store transactions           |
+| Apache Kafka  | Async transaction processing |
+| Postman       | API testing                  |
+| GitHub        | Showcase                     |
+| Docker        | Deployment                   |
+| IntelliJ IDEA | Development                  |
+
+
+Flow:
+Upload Transaction
+        ↓
+API Receives Request
+        ↓
+Data Stored in MySQL
+        ↓
+Kafka Event Published
+        ↓
+Consumer Processes Payment
+        ↓
+Status Updated
+        ↓
+Retry Failed Transactions
+        ↓
+View Reports via API
+
+
+
+Software:
+MySQL Community Server
+	Username: root
+	Password: root
+	Service: MySQL97 Server 9.7.0 on port 3306.
+
+MySQL Workbench
+	Create tables
+	View data
+	Run SQL queries
+
+
+
+/actuator/health
+/actuator/metrics
+
+
+Steps:
+
+Start Database:
+	Win + R > services.msc > MySQL97 > Running
+	MySQL Workbench > root / root >
+		DB: payment_db
+		Tables: payment_transaction, incident_log
+
+Start ZooKeeper:
+	C:\kafka\kafka_2.13-3.9.2\bin\windows\zookeeper-server-start.bat config\zookeeper.properties
+	verify by searching: binding to port 0.0.0.0/0.0.0.0:2181
+
+Start Kafka Server:
+	C:\kafka\kafka_2.13-3.9.2\bin\windows\kafka-server-start.bat config\server.properties
+	Verify: started (kafka.server.KafkaServer)
+
+Create Topic:
+	C:\kafka\kafka_2.13-3.9.2\bin\windows\kafka-topics.bat --create --topic payment-topic --bootstrap-server localhost:9092
+
+Verify Topic:
+	C:\kafka\kafka_2.13-3.9.2\bin\windows\kafka-topics.bat --list --bootstrap-server localhost:9092
+
+Run PaymentSystemApplication.java
+	Make sure Java 17 is set in:
+		JAVA_HOME
+		File > Project Structure > SDK > 17
+		Modules > Language Level > 17
+		File > Settings > Compiler > ... > Java Compiler > Module (payment-system) > 17
+		Build Tools > Maven > Runner > JRE: 17
+
+Postman:
+	POST > http://localhost:8080/api/transactions
+	JSON:
+		{
+		  "txnId": "TXN1001",
+		  "accountNumber": "9876543210",
+		  "amount": 5000,
+		  "remarks": "Salary Payment"
+		}
+
+	GET: http://localhost:8080/api/transactions/TXN1001
+	Response:
+		{
+			"id": 1,
+			"txnId": "TXN1001",
+			"accountNumber": "9876543210",
+			"amount": 5000.0,
+			"status": "PROCESSING",
+			"remarks": "Salary Payment"
+		}
+
+Swagger:
+http://localhost:8080/swagger-ui/index.html << For Spring 3.x
+http://localhost:8080/v3/api-docs
+	http://localhost:8080/swagger-ui.html << For Spring 2.x
+
+Dockerize:
+	mvn clean package -DskipTests #skipping test here because we have only one db, including Tests will create connection issue wrt spring.datasource.url
+
+	Dockerfile
+		FROM eclipse-temurin:8
+
+		#COPY target/payment-system.jar app.jar
+		COPY target/payment-system-0.0.1-SNAPSHOT.jar app.jar
+
+		ENTRYPOINT ["java","-jar","/app.jar"]
+
+	Start Docker Desktop
+
+	docker build -t payment-system . << This should create image in Docker Desktop
+	docker run -p 8080:8080 payment-system
+
+Push to GitHub
+	Create Repo: payment-clearing-system // Avoid creating any file
+	git init
+	git add .
+	git commit -m "Initial Commit"
+	git branch -M main
+	git remote add origin <github-url>
+	git push -u origin main
+
+DEMO:
+	Show Swagger UI.
+	Create transaction from Postman.
+	Show Kafka console logs.
+	Show database insertion.
+	Get transaction via API.
+	Explain retry mechanism.
+	Explain incident handling.
+
+------------------------------------------
+Issues Faced:
+
+# Issues Faced and Solutions
+
+1. **MySQL Workbench compatibility warning with MySQL 9.x**
+   Solution: Continued temporarily using “Continue Anyway” and recommended using stable versions like MySQL 8.0 + Workbench 8.0 for Spring Boot compatibility.
+
+2. **Spring Boot 2.7 not visible in Spring Initializr**
+   Solution: Generated a Spring Boot 3 project first, then manually changed `pom.xml` to Spring Boot 2.7.18 and updated Java version.
+
+3. **Kafka startup failed with ZooKeeper timeout**
+   Solution: Started ZooKeeper first using `zookeeper-server-start`, then started Kafka in a separate terminal.
+
+4. **Spring Boot main class not found**
+   Solution: Verified package structure, recreated IntelliJ run configuration, and rebuilt the project using Maven.
+
+5. **Spring Boot 3 incompatible with Java 8**
+   Solution: Either downgrade to Spring Boot 2.7 for Java 8 or fully migrate to Java 17 for Spring Boot 3.
+
+6. **Maven using wrong Java version**
+   Solution: Updated `JAVA_HOME`, configured IntelliJ Project SDK/Maven JVM to Java 17, and reloaded Maven.
+
+7. **Need to maintain both Java 8 and Java 17**
+   Solution: Installed both JDKs and configured project-specific SDKs in IntelliJ while keeping Java 17 as default.
+
+8. **Environment variables not reflecting immediately**
+   Solution: Restarted IntelliJ and terminal sessions after updating `JAVA_HOME` and `PATH`.
+
+9. **Set Java 17 globally across Windows**
+   Solution: Updated `JAVA_HOME` and `PATH` to point to Java 17 and removed old Java 8 entries.
+
+10. **Unable to start/open MySQL server and Workbench**
+   Solution: Started MySQL service from `services.msc` and connected through MySQL Workbench using localhost and port 3306.
+
+11. **Where to place SQL files in Spring Boot project**
+   Solution: Added `schema.sql` and `data.sql` under `src/main/resources` for automatic Spring Boot execution.
+
+12. **TestNG dependency missing during build**
+   Solution: Replaced `org.testng.annotations.Test` with JUnit 5 `org.junit.jupiter.api.Test`.
+
+13. **Application required `mvn clean install` before every run**
+   Solution: Fixed IntelliJ SDK, Maven JVM, compiler settings, and invalidated IntelliJ caches.
+
+14. **OpenJDK Platform Binary firewall popup appearing repeatedly**
+   Solution: Allowed Java executables permanently in Windows Firewall under private networks.
+
+15. **Placement of `GlobalExceptionHandler` class**
+   Solution: Created a dedicated `exception` package and added `@RestControllerAdvice`.
+
+16. **Swagger UI showing Whitelabel Error Page**
+   Solution: Replaced old Swagger dependency with Spring Boot 3 compatible `springdoc-openapi-starter-webmvc-ui`.
+
+17. **Where to create Dockerfile in Spring Boot project**
+   Solution: Created `Dockerfile` in the project root alongside `pom.xml`.
+
+18. **Docker daemon connection failure**
+   Solution: Started Docker Desktop and verified Docker engine using `docker version`.
+
+19. **Docker build failed because Dockerfile not found**
+   Solution: Created correctly named `Dockerfile` without `.txt` extension in project root.
+
+20. **Docker image not found while running container**
+   Solution: Built the Docker image successfully using `docker build -t payment-system .`.
+
+21. **Docker COPY failed because JAR file name mismatched**
+   Solution: Verified actual JAR name inside `target/` and updated Dockerfile COPY command accordingly.
+
+22. **Docker container failed due to Java 8 runtime**
+   Solution: Changed Docker base image from Java 8 to Java 17 using `eclipse-temurin:17-jdk`.
+
+23. **Spring Boot container unable to determine Hibernate dialect**
+   Solution: Added proper datasource URL, MySQL dialect, and replaced localhost with `host.docker.internal`.
+
+24. **Spring Boot tests failing during Maven build**
+   Solution: Skipped tests temporarily using `mvn clean package -DskipTests`.
+
+25. **Git push rejected because remote repository had existing commits**
+   Solution: Pulled remote changes using `git pull origin main --allow-unrelated-histories` and then pushed successfully.
